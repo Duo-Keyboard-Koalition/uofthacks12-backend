@@ -11,34 +11,28 @@ from pymongo.server_api import ServerApi
 from datetime import datetime, timezone
 from pinecone import Pinecone
 from openai import OpenAI
+import matplotlib.pyplot as plt
+from umap import UMAP
+import numpy as np
 import uuid
 import dotenv
+
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 dotenv.load_dotenv(os.path.join(dir_path, ".env"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-pinecone_index = "uofthacks12"
+pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+pc_idx = "uofthacks12"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Test database connection on startup
     try:
-        # test_mongo_connection()
         print("Successfully connected to MongoDB!")
-        # index = pinecone_client.Index(pinecone_index)
         print("Successfully connected to Pinecone!")
         yield
     finally:
-        # Shutdown logic
         try:
-            # Close Pinecone connection
-            # pinecone_client.deinit()
             print("Successfully disconnected from Pinecone!")
-            
-            # Close MongoDB connection if you're using it
-            # await mongo_client.close()
-            # print("Successfully disconnected from MongoDB!")
-            
         except Exception as e:
             print(f"Error during shutdown: {str(e)}")
 
@@ -53,15 +47,14 @@ class BaseRouter:
 class MainRouter(BaseRouter):
     def setup_routes(self):
         self.router.add_api_route("/", self.read_root, methods=["GET"])
-        self.router.add_api_route("/hello", self.hello, methods=["GET"])
         self.router.add_api_route("/question", self.add_question, methods=["POST"])
         self.router.add_api_route("/query", self.query_question, methods=["POST"])
+        self.router.add_api_route("/visualize", self.compute_graph, methods=["GET"])
+        self.router.add_api_route("/query_by_field", self.query_by_field, methods=["GET"])
+        self.router.add_api_route("/update_question", self.update_question, methods=["PUT"])
 
     def read_root(self) -> Dict:
         return {"Hello": "World"}
-
-    def hello(self) -> Dict:
-        return {"message": "Hello from UofTHacks!"}
     
     def add_question(self, question: UserQuestion) -> Dict:
         try:
@@ -71,7 +64,7 @@ class MainRouter(BaseRouter):
                 model="text-embedding-ada-002"
             )
             vector = response.data[0].embedding
-            # print("Vector: ", vector)
+            
             # Prepare document
             question_doc = {
                 "text": f"question: {question.QuestionAsked} answer: {question.QuestionAnswer}",
@@ -81,7 +74,7 @@ class MainRouter(BaseRouter):
                 "timestamp": datetime.now(timezone.utc)
             }
             # Store in Pinecone
-            pinecone_client.Index(pinecone_index).upsert(
+            pc.Index(pc_idx).upsert(
                 vectors=[{
                     "id": str(uuid.uuid4()),
                     "values": vector,
@@ -106,7 +99,56 @@ class MainRouter(BaseRouter):
                 "message": str(e)
             }
     
-    def query_question(self, question: UserQuestion) -> list:
+    def query_by_field(self, field: str, id: str) -> dict:
+        dummy_vec = np.zeros(1536).tolist()
+
+        response = pc.Index(pc_idx).query(
+            vector=dummy_vec,
+            filter={field: {"$eq": id}},
+            top_k=10000,  # Adjust based on your needs
+            include_metadata=True,
+            namespace="questions"
+        )
+
+        # Process the results to ensure they're JSON-serializable
+        processed_results = []
+        for match in response['matches']:
+            processed_match = {
+                "id": match['id'],
+                "score": float(match['score']),  # Convert numpy float to Python float
+                "metadata": match['metadata']
+            }
+            processed_results.append(processed_match)
+
+        # Return the results as JSON
+        return JSONResponse(content={"results": processed_results})
+
+
+    def update_question(self, responses: UserQuestion) -> dict:
+        try:
+            # Assuming the update is for the metadata fields
+            updated_metadata = {
+                "question": responses.QuestionAsked,
+                "answer": responses.QuestionAnswer,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "userId": responses.UserID
+            }
+            pc.Index(pc_idx).update(
+                id=responses.UserID,
+                namespace="questions",
+                metadata=updated_metadata
+            )
+            return {
+                "status": "success",
+                "message": "Entry updated successfully"
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+        
+    def query_question(self, question: UserQuestion) -> dict:
         try:
             query_response = openai_client.embeddings.create(
                 input=question.QuestionAsked,
@@ -114,7 +156,7 @@ class MainRouter(BaseRouter):
             )
             query_vector = query_response.data[0].embedding
 
-            response = pinecone_client.Index(pinecone_index).query(
+            response = pc.Index(pc_idx).query(
                 namespace="questions",
                 vector=query_vector,
                 top_k=3,
@@ -137,7 +179,36 @@ class MainRouter(BaseRouter):
                 "message": str(e)
             }
     
+    def compute_graph(self) -> dict:
+        try:
+            vectors = []
+            ids = []
 
+            # print(pinecone_client.Index(pinecone_index).fetch())
+            print(pc.Index(pc_idx).describe_index_stats())
+            print(list(pc.Index(pc_idx).list(namespace="questions")))
+
+            # gets list of ALL vectors
+            indices = list(pc.Index(pc_idx).list(namespace="questions"))
+            rows = pc.Index(pc_idx).fetch(*indices, namespace="questions")
+
+            ids, vectors = {id: rows['vectors'][id]['values'] for id in rows['vectors']}
+            vectors = np.array(vectors)
+            print(vectors)
+
+            umap = UMAP(n_components=2, random_state=42)
+            embeddings_2d = umap.fit_transform(vectors).tolist()
+            print(embeddings_2d)
+
+            return {"embeddings_2d": embeddings_2d, "labels": ids}
+
+        except Exception as e:
+            raise e
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+    
 app = FastAPI(lifespan=lifespan)
 # Initialize router
 main_router = MainRouter()
