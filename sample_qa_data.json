@@ -1,0 +1,42 @@
+[
+    {
+        "UserID": "user_001",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a software engineer with 5 years of experience in full-stack development. I specialize in Python and JavaScript, and I'm passionate about building scalable web applications. In my free time, I contribute to open-source projects and mentor junior developers."
+    },
+    {
+        "UserID": "user_002",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a recent graduate from the University of Toronto with a degree in Computer Science. I'm particularly interested in machine learning and have completed several projects in natural language processing. I'm eager to apply my theoretical knowledge in a practical setting."
+    },
+    {
+        "UserID": "user_003",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a creative professional with a background in both design and development. Having worked on numerous UI/UX projects, I bridge the gap between aesthetic appeal and technical functionality. I believe in user-centered design and creating intuitive experiences."
+    },
+    {
+        "UserID": "user_004",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a data scientist with expertise in statistical analysis and predictive modeling. My work focuses on turning complex data into actionable insights. I have experience with Python, R, and various machine learning frameworks. I'm currently exploring deep learning applications in healthcare."
+    },
+    {
+        "UserID": "user_005",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm an entrepreneurial-minded product manager with a track record of launching successful tech products. I combine my technical background with strong business acumen to drive product strategy and execution. I'm passionate about solving real-world problems through technology."
+    },
+    {
+        "UserID": "user_006",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a cybersecurity specialist focused on network security and threat detection. With certifications in CISSP and CEH, I help organizations protect their digital assets. I regularly participate in bug bounty programs and security conferences to stay current with emerging threats."
+    },
+    {
+        "UserID": "user_007",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a DevOps engineer specializing in cloud infrastructure and automation. I work with AWS, Docker, and Kubernetes to build and maintain scalable systems. I'm passionate about implementing CI/CD pipelines and improving deployment efficiency."
+    },
+    {
+        "UserID": "user_008",
+        "QuestionAsked": "Tell me about yourself",
+        "QuestionAnswer": "I'm a mobile app developer with expertise in both iOS and Android development. I've published several apps with over 1M+ downloads combined. I enjoy creating intuitive mobile experiences that solve everyday problems."
+    }
+]

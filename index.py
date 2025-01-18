@@ -16,19 +16,30 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 dotenv.load_dotenv(os.path.join(dir_path, ".env"))
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-pinecone_index = "meta3-hackathon"
+pinecone_index = "uofthacks12"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Test database connection on startup
     try:
         # test_mongo_connection()
         print("Successfully connected to MongoDB!")
-        index = pinecone_client.Index(pinecone_index)
+        # index = pinecone_client.Index(pinecone_index)
         print("Successfully connected to Pinecone!")
         yield
-    except Exception as e:
-        print(f"Database connection failed: {str(e)}")
-        raise e
+    finally:
+        # Shutdown logic
+        try:
+            # Close Pinecone connection
+            # pinecone_client.deinit()
+            print("Successfully disconnected from Pinecone!")
+            
+            # Close MongoDB connection if you're using it
+            # await mongo_client.close()
+            # print("Successfully disconnected from MongoDB!")
+            
+        except Exception as e:
+            print(f"Error during shutdown: {str(e)}")
 
 class BaseRouter:
     def __init__(self):
@@ -49,7 +60,7 @@ class MainRouter(BaseRouter):
 
     def hello(self) -> Dict:
         return {"message": "Hello from UofTHacks!"}
-    async def add_question(self, question: UserQuestion) -> Dict:
+    def add_question(self, question: UserQuestion) -> Dict:
         try:
             # Get embeddings
             response = openai_client.embeddings.create(
