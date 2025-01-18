@@ -1,6 +1,7 @@
 import os
 
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import JSONResponse
 from typing import Dict
 from models import UserQuestion
 # from database.db_test import test_mongo_connection
@@ -54,12 +55,14 @@ class MainRouter(BaseRouter):
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/hello", self.hello, methods=["GET"])
         self.router.add_api_route("/question", self.add_question, methods=["POST"])
+        self.router.add_api_route("/query", self.query_question, methods=["POST"])
 
     def read_root(self) -> Dict:
         return {"Hello": "World"}
 
     def hello(self) -> Dict:
         return {"message": "Hello from UofTHacks!"}
+    
     def add_question(self, question: UserQuestion) -> Dict:
         try:
             # Get embeddings
@@ -68,7 +71,7 @@ class MainRouter(BaseRouter):
                 model="text-embedding-ada-002"
             )
             vector = response.data[0].embedding
-            print("Vector: ", vector)
+            # print("Vector: ", vector)
             # Prepare document
             question_doc = {
                 "userId": question.UserID,
@@ -101,6 +104,39 @@ class MainRouter(BaseRouter):
                 "status": "error",
                 "message": str(e)
             }
+    
+    def query_question(self, question: UserQuestion) -> list:
+        try:
+            query_response = openai_client.embeddings.create(
+                input=question.QuestionAsked,
+                model="text-embedding-ada-002"
+            )
+            query_vector = query_response.data[0].embedding
+
+            response = pinecone_client.Index(pinecone_index).query(
+                namespace="questions",
+                vector=query_vector,
+                top_k=3,
+                include_metadata=True,
+                include_values=False
+            )
+            results = [
+                {
+                    "id": match["id"],
+                    "score": float(match["score"]),  # Convert score to float
+                    "metadata": match.get("metadata", {})
+                }
+                for match in response.get("matches", [])
+            ]
+
+            return JSONResponse(content=results)
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+    
+
 app = FastAPI(lifespan=lifespan)
 # Initialize router
 main_router = MainRouter()
