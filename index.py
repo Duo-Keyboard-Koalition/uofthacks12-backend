@@ -97,7 +97,7 @@ class MainRouter(BaseRouter):
 
         # query for people w similar responses
         tiered_sim = {}
-        ids, vectors = [], []
+        ids, vectors, scores = [], [], []
 
         MAX_K = 10
         for j, k in enumerate(range(MAX_K // tiers, MAX_K + 1, MAX_K // tiers), start=1):
@@ -112,13 +112,14 @@ class MainRouter(BaseRouter):
         for match in result['matches']:
             ids.append(match['id'])
             vectors.append(match['values'])
+            scores.append(match['score'])
 
         vectors = np.array(vectors)
 
         umap = UMAP(n_components=2, random_state=42)
         embeddings_2d = umap.fit_transform(vectors).tolist()
 
-        return {"embeddings_2d": embeddings_2d, "labels": ids, "tiers": tiered_sim}
+        return {"embeddings_2d": embeddings_2d, "labels": ids, "tiers": tiered_sim, "sim_scores": scores}
     
 app = FastAPI(lifespan=lifespan)
 # Initialize router
