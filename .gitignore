@@ -68,7 +68,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-
+.idea/
+.uofthack12-tests/
 # PyBuilder
 target/
 
@@ -113,3 +114,4 @@ venv.bak/
 # .DS_Store
 .DS_Store
 
+.aider*

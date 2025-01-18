@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+.env
+.git
+.gitignore
+.pytest_cache/
+
+gcloud projects add-iam-policy-binding kataros --member="user:darcy.ldx@gmail.com" --role="roles/artifactregistry.writer"
