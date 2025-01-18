@@ -74,6 +74,7 @@ class MainRouter(BaseRouter):
             # print("Vector: ", vector)
             # Prepare document
             question_doc = {
+                "text": f"question: question.QuestionAsked} answer: {question.QuestionAnswer}",
                 "userId": question.UserID,
                 "questionAsked": question.QuestionAsked,
                 "answer": question.QuestionAnswer,
