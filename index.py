@@ -43,7 +43,7 @@ class MainRouter(BaseRouter):
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/add_document", self.add_document, methods=["POST"])
         self.router.add_api_route("/find_document", self.find_document, methods=["GET"])
-        self.router.add_api_route("/visualize", self.compute_graph, methods=["GET"])
+        self.router.add_api_route("/query", self.query, methods=["GET"])
 
     def read_root(self) -> Dict:
         return {"Hello": "World"}
@@ -91,26 +91,35 @@ class MainRouter(BaseRouter):
         # Return the results as JSON
         return JSONResponse(content={"results": metadata_results})
         
-    def compute_graph(self) -> dict:
-        vectors = []
-        ids = []
+    def query(self, userId: str, tiers: int = 3) -> dict:
+        result = pc.Index(pc_idx).fetch(ids=[userId], namespace="questions")
+        target_vec = result['vectors'][userId]['values']
 
-        print(pc.Index(pc_idx).describe_index_stats())
-        print(list(pc.Index(pc_idx).list(namespace="questions")))
+        # query for people w similar responses
+        tiered_sim = {}
+        ids, vectors, scores = [], [], []
 
-        # gets list of ALL vectors
-        indices = list(pc.Index(pc_idx).list(namespace="questions"))
-        rows = pc.Index(pc_idx).fetch(*indices, namespace="questions")
+        MAX_K = 10
+        for j, k in enumerate(range(MAX_K // tiers, MAX_K + 1, MAX_K // tiers), start=1):
+            result = pc.Index(pc_idx).query(vector=target_vec, top_k=k, namespace="questions", include_values=True)
+            tiered_sim[j] = {}
 
-        ids, vectors = {id: rows['vectors'][id]['values'] for id in rows['vectors']}
+            for match in result['matches']:
+                if match['id'] != userId:
+                    tiered_sim[j][match['id']] = None
+        
+        result = pc.Index(pc_idx).query(vector=target_vec, top_k=MAX_K, namespace="questions", include_values=True)
+        for match in result['matches']:
+            ids.append(match['id'])
+            vectors.append(match['values'])
+            scores.append(match['score'])
+
         vectors = np.array(vectors)
-        print(vectors)
 
         umap = UMAP(n_components=2, random_state=42)
         embeddings_2d = umap.fit_transform(vectors).tolist()
-        print(embeddings_2d)
 
-        return {"embeddings_2d": embeddings_2d, "labels": ids}
+        return {"embeddings_2d": embeddings_2d, "labels": ids, "tiers": tiered_sim, "sim_scores": scores}
     
 app = FastAPI(lifespan=lifespan)
 # Initialize router
