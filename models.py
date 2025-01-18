@@ -1,9 +1,12 @@
 from pydantic import BaseModel
 
-class UserQuestion(BaseModel):
-    UserID: str
-    QuestionAsked: str
-    QuestionAnswer: str
+class Document(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    text: str
+    social1: str
+    social2: str
 
 # make an event
 '''
