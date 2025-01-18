@@ -1,4 +1,5 @@
 import os
+
 from fastapi import FastAPI, APIRouter
 from typing import Dict
 from models import UserQuestion
@@ -8,18 +9,21 @@ from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 from datetime import datetime, timezone
 from pinecone import Pinecone
-
-
-
+from openai import OpenAI
+import uuid
+import dotenv
+dir_path = os.path.dirname(os.path.realpath(__file__))
+dotenv.load_dotenv(os.path.join(dir_path, ".env"))
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+pinecone_index = "meta3-hackathon"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Test database connection on startup
     try:
         # test_mongo_connection()
         print("Successfully connected to MongoDB!")
-
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        index = pc.Index("meta3-hackathon")
+        index = pinecone_client.Index(pinecone_index)
         print("Successfully connected to Pinecone!")
         yield
     except Exception as e:
@@ -47,13 +51,13 @@ class MainRouter(BaseRouter):
         return {"message": "Hello from UofTHacks!"}
     async def add_question(self, question: UserQuestion) -> Dict:
         try:
-            # Create new MongoDB client
-            client : MongoClient = MongoClient(os.getenv("MONGODB_URI"), server_api=ServerApi('1'))
-            
-            # Get database and collection
-            db = client['uofthacks']
-            questions = db['questions']
-            
+            # Get embeddings
+            response = openai_client.embeddings.create(
+                input=question.QuestionAnswer,
+                model="text-embedding-ada-002"
+            )
+            vector = response.data[0].embedding
+            print("Vector: ", vector)
             # Prepare document
             question_doc = {
                 "userId": question.UserID,
@@ -61,13 +65,23 @@ class MainRouter(BaseRouter):
                 "answer": question.QuestionAnswer,
                 "timestamp": datetime.now(timezone.utc)
             }
-            
-            # Insert document
-            result = questions.insert_one(question_doc)
-            
+            # Store in Pinecone
+            pinecone_client.Index(pinecone_index).upsert(
+                vectors=[{
+                    "id": str(uuid.uuid4()),
+                    "values": vector,
+                    "metadata": {
+                        "question": question.QuestionAsked,
+                        "answer": question.QuestionAnswer,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "userId": question.UserID
+                    }
+                }],
+                namespace="questions"
+            )
             return {
                 "status": "success",
-                "id": str(result.inserted_id),
+                "id": question.UserID,
                 "question": question_doc
             }
             
@@ -76,10 +90,6 @@ class MainRouter(BaseRouter):
                 "status": "error",
                 "message": str(e)
             }
-            
-        finally:
-            if client:
-                client.close()
 app = FastAPI(lifespan=lifespan)
 # Initialize router
 main_router = MainRouter()
