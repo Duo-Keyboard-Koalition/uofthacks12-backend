@@ -10,14 +10,18 @@ from openai import OpenAI
 from umap import UMAP
 import numpy as np
 import dotenv
+from helper import get_gcp_secrets
 
+secrets = get_gcp_secrets()
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 dotenv.load_dotenv(os.path.join(dir_path, ".env"))
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+# openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=secrets["OPENAI_API_KEY"])
+# pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+pc = Pinecone(api_key=secrets["PINECONE_API_KEY"])
 pc_idx = "uofthacks12" # this is the users database
-user_db = "questions"
+user_db = "questions" # this is hte user namespace
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
