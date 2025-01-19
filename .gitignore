@@ -75,7 +75,11 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
 # IPython
 profile_default/
 ipython_config.py

@@ -1,4 +1,3 @@
-# Configure the Google Cloud Provider
 terraform {
   required_providers {
     google = {
@@ -6,29 +5,42 @@ terraform {
       version = "~> 4.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "kataros-terraform-state"
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {
-  project = "kataros"
-  region  = "us-central1"
+  project = var.project_id
+  region  = var.region
 }
 
-# Create an Autopilot GKE Cluster
+# GKE Cluster
 resource "google_container_cluster" "my_gke_cluster" {
-  name     = "uofthacks12-cluster"
-  location = "us-central1"
+  name     = var.cluster_name
+  location = var.region
 
-  # Enable Autopilot
   enable_autopilot = true
-
-  # Network Configuration
-  networking_mode = "VPC_NATIVE"
+  networking_mode  = "VPC_NATIVE"
   
-  # Required for VPC-native clusters
   ip_allocation_policy {
     cluster_ipv4_cidr_block  = "/16"
     services_ipv4_cidr_block = "/22"
   }
+
+  workload_identity_config {
+    workload_pool = "${var.project_id}.svc.id.goog"
+  }
+}
+
+# Reference GitHub Actions Workload Identity
+module "github_actions" {
+  source = "./modules/github-actions"
+  
+  project_id = var.project_id
+  pool_id    = google_iam_workload_identity_pool.github_pool.id
 }
 
 # Outputs
@@ -42,4 +54,8 @@ output "cluster_name" {
 
 output "location" {
   value = google_container_cluster.my_gke_cluster.location
+}
+
+output "workload_identity_pool" {
+  value = google_iam_workload_identity_pool.github_pool.name
 }
