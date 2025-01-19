@@ -24,7 +24,7 @@ jobs:
           echo "Dockerfile found"
         else
           echo "Dockerfile not found"
-          ls -R
+          ls -la
           exit 1
         fi
       
