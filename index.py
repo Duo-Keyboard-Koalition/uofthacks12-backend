@@ -10,14 +10,18 @@ from openai import OpenAI
 from umap import UMAP
 import numpy as np
 import dotenv
+from helper import get_gcp_secrets
 
+secrets = get_gcp_secrets()
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 dotenv.load_dotenv(os.path.join(dir_path, ".env"))
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-pc_idx = "uofthacks12"
-
+# openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=secrets["OPENAI_API_KEY"])
+# pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+pc = Pinecone(api_key=secrets["PINECONE_API_KEY"])
+pc_idx = "uofthacks12" # this is the users database
+user_db = "questions" # this is hte user namespace
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -69,7 +73,7 @@ class MainRouter(BaseRouter):
                 "values": vector,
                 "metadata": {k: v for k, v in user_document.items() if k != 'user_id'}
             }],
-            namespace="questions"
+            namespace=user_db
         )
         
         return {
@@ -81,7 +85,7 @@ class MainRouter(BaseRouter):
     def find_document(self, userId: str) -> dict:
         response = pc.Index(pc_idx).fetch(
             ids=[userId],
-            namespace="questions"
+            namespace=user_db
         )
         
         metadata_results = {}
@@ -92,7 +96,7 @@ class MainRouter(BaseRouter):
         return JSONResponse(content={"results": metadata_results})
         
     def query(self, userId: str, tiers: int = 3) -> dict:
-        result = pc.Index(pc_idx).fetch(ids=[userId], namespace="questions")
+        result = pc.Index(pc_idx).fetch(ids=[userId], namespace=user_db)
         target_vec = result['vectors'][userId]['values']
 
         # query for people w similar responses
@@ -101,14 +105,14 @@ class MainRouter(BaseRouter):
 
         MAX_K = 10
         for j, k in enumerate(range(MAX_K // tiers, MAX_K + 1, MAX_K // tiers), start=1):
-            result = pc.Index(pc_idx).query(vector=target_vec, top_k=k, namespace="questions", include_values=True)
+            result = pc.Index(pc_idx).query(vector=target_vec, top_k=k, namespace=user_db, include_values=True)
             tiered_sim[j] = {}
 
             for match in result['matches']:
                 if match['id'] != userId:
                     tiered_sim[j][match['id']] = None
         
-        result = pc.Index(pc_idx).query(vector=target_vec, top_k=MAX_K, namespace="questions", include_values=True)
+        result = pc.Index(pc_idx).query(vector=target_vec, top_k=MAX_K, namespace=user_db, include_values=True)
         for match in result['matches']:
             ids.append(match['id'])
             vectors.append(match['values'])
