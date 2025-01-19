@@ -18,12 +18,12 @@ jobs:
     - name: Print directory contents
       run: ls -R
       
-    - name: Check for Dockerfile
+    - name: Check for DOCKERFILE
       run: |
-        if [ -f "Dockerfile" ]; then
-          echo "Dockerfile found"
+        if [ -f "DOCKERFILE" ]; then
+          echo "DOCKERFILE found"
         else
-          echo "Dockerfile not found"
+          echo "DOCKERFILE not found"
           ls -la
           exit 1
         fi
@@ -38,6 +38,6 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Dockerfile
+        file: ./DOCKERFILE
         push: true
         tags: codejediondockerhub/uofthacks12-backend:latest
